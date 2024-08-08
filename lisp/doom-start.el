@@ -143,9 +143,9 @@
 ;; ...but `set-language-environment' also sets `default-input-method', which is
 ;; a step too opinionated.
 (setq default-input-method nil)
-;; ...And the clipboard on Windows could be in a wider encoding (UTF-16), so
-;; leave Emacs to its own devices there.
-(eval-when! (not doom--system-windows-p)
+;; ...And the clipboard on Windows is often a wider encoding (UTF-16), so leave
+;; Emacs to its own devices there.
+(unless doom--system-windows-p
   (setq selection-coding-system 'utf-8))
 
 
@@ -163,7 +163,12 @@
 
 (defun doom-run-local-var-hooks-h ()
   "Run MODE-local-vars-hook after local variables are initialized."
-  (unless (or doom-inhibit-local-var-hooks delay-mode-hooks)
+  (unless (or doom-inhibit-local-var-hooks
+              delay-mode-hooks
+              ;; Don't trigger local-vars hooks in temporary (internal) buffers
+              (string-prefix-p
+               " " (buffer-name (or (buffer-base-buffer)
+                                    (current-buffer)))))
     (setq-local doom-inhibit-local-var-hooks t)
     (doom-run-hooks (intern-soft (format "%s-local-vars-hook" major-mode)))))
 
@@ -402,11 +407,10 @@ If RETURN-P, return the message as a string instead of displaying it."
          (display-warning
           'initialization
           (format-message "\
-An error occurred while loading `%s':\n\n%s%s%s\n\n\
+An error occurred while booting Doom Emacs:\n\n%s%s%s\n\n\
 To ensure normal operation, you should investigate and remove the
-cause of the error in your initialization file.  Start Emacs with
+cause of the error in your Doom config files. Start Emacs with
 the `--debug-init' option to view a complete error backtrace."
-                          user-init-file
                           (get (car error) 'error-message)
                           (if (cdr error) ": " "")
                           (mapconcat (lambda (s) (prin1-to-string s t))
